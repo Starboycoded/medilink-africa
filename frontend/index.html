@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MediLink Africa - Unified Patient Records</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body class="auth-page">
+
+  <div class="auth-container">
+    <div class="auth-brand">
+      <div class="brand-icon">🏥</div>
+      <h1>MediLink Africa</h1>
+      <p>Unified AI-Powered Patient Health Records</p>
+    </div>
+
+    <!-- Login Form -->
+    <div class="auth-card" id="loginForm">
+      <h2>Sign In</h2>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="doctor@hospital.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" />
+      </div>
+      <button class="btn-primary" onclick="login()">Sign In</button>
+      <p class="auth-switch">Don't have an account? <a href="#" onclick="toggleForm()">Register</a></p>
+      <div id="loginError" class="error-msg"></div>
+    </div>
+
+    <!-- Register Form -->
+    <div class="auth-card hidden" id="registerForm">
+      <h2>Create Account</h2>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="regName" placeholder="Dr. Amara Osei" />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="regEmail" placeholder="doctor@hospital.com" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="regPassword" placeholder="••••••••" />
+      </div>
+      <div class="form-group">
+        <label>Role</label>
+        <select id="regRole">
+          <option value="doctor">Doctor</option>
+          <option value="nurse">Nurse</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Hospital</label>
+        <input type="text" id="regHospital" placeholder="Lagos University Teaching Hospital" />
+      </div>
+      <button class="btn-primary" onclick="register()">Create Account</button>
+      <p class="auth-switch">Already have an account? <a href="#" onclick="toggleForm()">Sign In</a></p>
+      <div id="registerError" class="error-msg"></div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'https://your-render-url.onrender.com'; // Replace with your Render URL
+
+    function toggleForm() {
+      document.getElementById('loginForm').classList.toggle('hidden');
+      document.getElementById('registerForm').classList.toggle('hidden');
+    }
+
+    async function login() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      const errorEl = document.getElementById('loginError');
+      errorEl.textContent = '';
+
+      try {
+        const res = await fetch(`${API}/api/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    }
+
+    async function register() {
+      const full_name = document.getElementById('regName').value;
+      const email = document.getElementById('regEmail').value;
+      const password = document.getElementById('regPassword').value;
+      const role = document.getElementById('regRole').value;
+      const hospital = document.getElementById('regHospital').value;
+      const errorEl = document.getElementById('registerError');
+      errorEl.textContent = '';
+
+      try {
+        const res = await fetch(`${API}/api/auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name, email, password, role, hospital })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = 'dashboard.html';
+      } catch (err) {
+        errorEl.textContent = err.message;
+      }
+    }
+
+    // Redirect if already logged in
+    if (localStorage.getItem('token')) {
+      window.location.href = 'dashboard.html';
+    }
+  </script>
+</body>
+</html>
