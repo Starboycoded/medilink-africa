@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MediLink Africa - Dashboard</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-brand">
+      <span>🏥</span>
+      <span>MediLink</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" onclick="showSection('search')">🔍 Find Patient</a>
+      <a href="#" class="nav-item" onclick="showSection('register')">➕ Register Patient</a>
+      <a href="#" class="nav-item" onclick="showSection('handover')">🔄 Shift Handover</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="userInfo" class="user-info"></div>
+      <button class="btn-logout" onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- Search / Find Patient -->
+    <div id="section-search" class="section active">
+      <div class="section-header">
+        <h2>Find Patient</h2>
+        <p>Search by name or scan a patient QR code</p>
+      </div>
+
+      <div class="search-bar">
+        <input type="text" id="searchInput" placeholder="Search by name or patient code (e.g. MLA-000001)" />
+        <button class="btn-primary" onclick="searchPatients()">Search</button>
+      </div>
+
+      <div id="searchResults" class="results-grid"></div>
+    </div>
+
+    <!-- Register Patient -->
+    <div id="section-register" class="section hidden">
+      <div class="section-header">
+        <h2>Register New Patient</h2>
+        <p>Create a new patient record and generate their unique ID</p>
+      </div>
+
+      <div class="form-card">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" id="pName" placeholder="Amara Osei" />
+          </div>
+          <div class="form-group">
+            <label>Date of Birth</label>
+            <input type="date" id="pDob" />
+          </div>
+          <div class="form-group">
+            <label>Gender</label>
+            <select id="pGender">
+              <option value="">Select</option>
+              <option value="Male">Male</option>
+              <option value="Female">Female</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Blood Group</label>
+            <select id="pBlood">
+              <option value="">Unknown</option>
+              <option value="A+">A+</option>
+              <option value="A-">A-</option>
+              <option value="B+">B+</option>
+              <option value="B-">B-</option>
+              <option value="AB+">AB+</option>
+              <option value="AB-">AB-</option>
+              <option value="O+">O+</option>
+              <option value="O-">O-</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Genotype</label>
+            <select id="pGenotype">
+              <option value="">Unknown</option>
+              <option value="AA">AA</option>
+              <option value="AS">AS</option>
+              <option value="SS">SS</option>
+              <option value="AC">AC</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" id="pPhone" placeholder="+234 800 000 0000" />
+          </div>
+          <div class="form-group full-width">
+            <label>Known Allergies</label>
+            <input type="text" id="pAllergies" placeholder="e.g. Penicillin, Aspirin" />
+          </div>
+          <div class="form-group full-width">
+            <label>Chronic Conditions</label>
+            <input type="text" id="pChronic" placeholder="e.g. Hypertension, Diabetes Type 2" />
+          </div>
+          <div class="form-group">
+            <label>Emergency Contact Name</label>
+            <input type="text" id="pEcName" placeholder="Next of kin" />
+          </div>
+          <div class="form-group">
+            <label>Emergency Contact Phone</label>
+            <input type="text" id="pEcPhone" placeholder="+234 800 000 0000" />
+          </div>
+          <div class="form-group full-width">
+            <label>Address</label>
+            <input type="text" id="pAddress" placeholder="12 Hospital Road, Lagos" />
+          </div>
+        </div>
+        <button class="btn-primary" onclick="registerPatient()">Register Patient & Generate ID</button>
+        <div id="registerResult" class="register-result hidden"></div>
+      </div>
+    </div>
+
+    <!-- Shift Handover -->
+    <div id="section-handover" class="section hidden">
+      <div class="section-header">
+        <h2>AI Shift Handover</h2>
+        <p>Generate an AI-powered brief for the incoming shift</p>
+      </div>
+
+      <div class="form-card">
+        <div class="form-group">
+          <label>Patient Codes (comma separated)</label>
+          <input type="text" id="handoverCodes" placeholder="MLA-000001, MLA-000002, MLA-000003" />
+        </div>
+        <button class="btn-primary" onclick="generateHandover()">Generate Handover Brief</button>
+        <div id="handoverResult" class="handover-result hidden"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Patient Modal -->
+  <div id="patientModal" class="modal hidden">
+    <div class="modal-overlay" onclick="closeModal()"></div>
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'https://medilink-africa.onrender.com'; // Replace with your Render URL
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+    if (!token) window.location.href = 'index.html';
+
+    // Show user info
+    document.getElementById('userInfo').innerHTML = `
+      <strong>${user.full_name || 'User'}</strong>
+      <span>${user.role || ''} ${user.hospital ? '· ' + user.hospital : ''}</span>
+    `;
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = 'index.html';
+    }
+
+    function showSection(name) {
+      document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById(`section-${name}`).classList.remove('hidden');
+      event.target.classList.add('active');
+    }
+
+    async function searchPatients() {
+      const query = document.getElementById('searchInput').value.trim();
+      const container = document.getElementById('searchResults');
+      container.innerHTML = '<p class="loading">Searching...</p>';
+
+      try {
+        const res = await fetch(`${API}/api/patients?search=${encodeURIComponent(query)}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        if (!data.patients || data.patients.length === 0) {
+          container.innerHTML = '<p class="empty">No patients found.</p>';
+          return;
+        }
+
+        container.innerHTML = data.patients.map(p => `
+          <div class="patient-card" onclick="openPatient('${p.patient_code}')">
+            <div class="patient-avatar">${p.full_name.charAt(0)}</div>
+            <div class="patient-info">
+              <strong>${p.full_name}</strong>
+              <span>${p.patient_code}</span>
+              <span>${p.blood_group || 'Blood group unknown'} · ${p.gender || 'Gender unknown'}</span>
+            </div>
+            <div class="patient-arrow">→</div>
+          </div>
+        `).join('');
+      } catch (err) {
+        container.innerHTML = `<p class="error-msg">${err.message}</p>`;
+      }
+    }
+
+    async function openPatient(code) {
+      const modal = document.getElementById('patientModal');
+      const body = document.getElementById('modalBody');
+      body.innerHTML = '<p class="loading">Loading patient data...</p>';
+      modal.classList.remove('hidden');
+
+      try {
+        const [patientRes, aiRes] = await Promise.all([
+          fetch(`${API}/api/patients/${code}`, { headers: { 'Authorization': `Bearer ${token}` } }),
+          fetch(`${API}/api/ai/summary/${code}`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+
+        const patientData = await patientRes.json();
+        const aiData = await aiRes.json();
+        const p = patientData.patient;
+        const records = patientData.records || [];
+
+        body.innerHTML = `
+          <div class="patient-header">
+            <div class="patient-avatar large">${p.full_name.charAt(0)}</div>
+            <div>
+              <h2>${p.full_name}</h2>
+              <span class="badge">${p.patient_code}</span>
+              <span class="badge">${p.blood_group || 'Blood group unknown'}</span>
+              ${p.allergies ? `<span class="badge danger">⚠️ ${p.allergies}</span>` : ''}
+            </div>
+            <img src="${patientData.qrCode}" class="qr-code" alt="QR Code" title="Patient QR Code" />
+          </div>
+
+          <div class="ai-summary">
+            <h3>🤖 AI Health Summary</h3>
+            <p>${aiData.summary || 'No summary available.'}</p>
+            ${aiData.risks && aiData.risks.length > 0 ? `
+              <div class="risk-flags">
+                <strong>⚠️ Risk Flags:</strong>
+                <ul>${aiData.risks.map(r => `<li>${r}</li>`).join('')}</ul>
+              </div>
+            ` : ''}
+            ${aiData.recommendations && aiData.recommendations.length > 0 ? `
+              <div class="recommendations">
+                <strong>✅ Recommendations:</strong>
+                <ul>${aiData.recommendations.map(r => `<li>${r}</li>`).join('')}</ul>
+              </div>
+            ` : ''}
+          </div>
+
+          <div class="patient-details">
+            <h3>Patient Details</h3>
+            <div class="details-grid">
+              <div><label>Date of Birth</label><span>${p.date_of_birth ? new Date(p.date_of_birth).toDateString() : 'Unknown'}</span></div>
+              <div><label>Gender</label><span>${p.gender || 'Unknown'}</span></div>
+              <div><label>Genotype</label><span>${p.genotype || 'Unknown'}</span></div>
+              <div><label>Phone</label><span>${p.phone || 'Unknown'}</span></div>
+              <div><label>Chronic Conditions</label><span>${p.chronic_conditions || 'None recorded'}</span></div>
+              <div><label>Emergency Contact</label><span>${p.emergency_contact_name || 'None'} ${p.emergency_contact_phone ? '· ' + p.emergency_contact_phone : ''}</span></div>
+            </div>
+          </div>
+
+          <div class="add-record-section">
+            <h3>Add Medical Record</h3>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label>Chief Complaint *</label>
+                <input type="text" id="recComplaint" placeholder="e.g. Severe headache for 3 days" />
+              </div>
+              <div class="form-group full-width">
+                <label>Diagnosis</label>
+                <input type="text" id="recDiagnosis" placeholder="e.g. Hypertensive crisis" />
+              </div>
+              <div class="form-group full-width">
+                <label>Treatment</label>
+                <input type="text" id="recTreatment" placeholder="e.g. IV antihypertensives, bed rest" />
+              </div>
+              <div class="form-group full-width">
+                <label>Prescriptions</label>
+                <input type="text" id="recPrescriptions" placeholder="e.g. Amlodipine 5mg daily" />
+              </div>
+              <div class="form-group full-width">
+                <label>Lab Results</label>
+                <input type="text" id="recLab" placeholder="e.g. BP 180/110, Hb 11.2" />
+              </div>
+              <div class="form-group full-width">
+                <label>Notes</label>
+                <textarea id="recNotes" placeholder="Additional notes..."></textarea>
+              </div>
+              <div class="form-group">
+                <label>Follow-up Date</label>
+                <input type="date" id="recFollowup" />
+              </div>
+            </div>
+            <button class="btn-primary" onclick="addRecord('${p.patient_code}')">Save Record</button>
+            <div id="recordMsg" class="success-msg hidden"></div>
+          </div>
+
+          <div class="records-section">
+            <h3>Medical History (${records.length} visits)</h3>
+            ${records.length === 0 ? '<p class="empty">No records yet.</p>' : records.map(r => `
+              <div class="record-card">
+                <div class="record-header">
+                  <strong>${new Date(r.visit_date).toDateString()}</strong>
+                  <span>${r.hospital || 'Unknown Hospital'} · Dr. ${r.doctor_name || 'Unknown'}</span>
+                </div>
+                <div class="record-body">
+                  <p><label>Complaint:</label> ${r.chief_complaint || 'N/A'}</p>
+                  <p><label>Diagnosis:</label> ${r.diagnosis || 'N/A'}</p>
+                  <p><label>Treatment:</label> ${r.treatment || 'N/A'}</p>
+                  ${r.prescriptions ? `<p><label>Prescriptions:</label> ${r.prescriptions}</p>` : ''}
+                  ${r.lab_results ? `<p><label>Lab Results:</label> ${r.lab_results}</p>` : ''}
+                  ${r.notes ? `<p><label>Notes:</label> ${r.notes}</p>` : ''}
+                  ${r.follow_up_date ? `<p><label>Follow-up:</label> ${new Date(r.follow_up_date).toDateString()}</p>` : ''}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        body.innerHTML = `<p class="error-msg">${err.message}</p>`;
+      }
+    }
+
+    async function addRecord(patient_code) {
+      const msgEl = document.getElementById('recordMsg');
+      msgEl.classList.add('hidden');
+
+      const body = {
+        patient_code,
+        chief_complaint: document.getElementById('recComplaint').value,
+        diagnosis: document.getElementById('recDiagnosis').value,
+        treatment: document.getElementById('recTreatment').value,
+        prescriptions: document.getElementById('recPrescriptions').value,
+        lab_results: document.getElementById('recLab').value,
+        notes: document.getElementById('recNotes').value,
+        follow_up_date: document.getElementById('recFollowup').value || null
+      };
+
+      try {
+        const res = await fetch(`${API}/api/records`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        msgEl.textContent = '✅ Record saved successfully!';
+        msgEl.classList.remove('hidden');
+        setTimeout(() => openPatient(patient_code), 1500); // Refresh
+      } catch (err) {
+        msgEl.textContent = `❌ ${err.message}`;
+        msgEl.classList.remove('hidden');
+        msgEl.classList.add('error-msg');
+      }
+    }
+
+    async function registerPatient() {
+      const resultEl = document.getElementById('registerResult');
+      resultEl.classList.add('hidden');
+
+      const body = {
+        full_name: document.getElementById('pName').value,
+        date_of_birth: document.getElementById('pDob').value || null,
+        gender: document.getElementById('pGender').value || null,
+        blood_group: document.getElementById('pBlood').value || null,
+        genotype: document.getElementById('pGenotype').value || null,
+        allergies: document.getElementById('pAllergies').value || null,
+        chronic_conditions: document.getElementById('pChronic').value || null,
+        emergency_contact_name: document.getElementById('pEcName').value || null,
+        emergency_contact_phone: document.getElementById('pEcPhone').value || null,
+        phone: document.getElementById('pPhone').value || null,
+        address: document.getElementById('pAddress').value || null
+      };
+
+      try {
+        const res = await fetch(`${API}/api/patients/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        resultEl.innerHTML = `
+          <div class="success-box">
+            <h3>✅ Patient Registered!</h3>
+            <p><strong>Patient ID:</strong> ${data.patient.patient_code}</p>
+            <p><strong>Name:</strong> ${data.patient.full_name}</p>
+            <p>Share or print this QR code for the patient:</p>
+            <img src="${data.qrCode}" class="qr-code large" alt="Patient QR Code" />
+            <button class="btn-secondary" onclick="downloadQR('${data.qrCode}', '${data.patient.patient_code}')">Download QR Code</button>
+          </div>
+        `;
+        resultEl.classList.remove('hidden');
+      } catch (err) {
+        resultEl.innerHTML = `<p class="error-msg">❌ ${err.message}</p>`;
+        resultEl.classList.remove('hidden');
+      }
+    }
+
+    function downloadQR(dataUrl, code) {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `medilink-${code}.png`;
+      a.click();
+    }
+
+    async function generateHandover() {
+      const codesInput = document.getElementById('handoverCodes').value;
+      const resultEl = document.getElementById('handoverResult');
+      resultEl.classList.add('hidden');
+
+      const patient_codes = codesInput.split(',').map(c => c.trim()).filter(Boolean);
+      if (patient_codes.length === 0) {
+        alert('Please enter at least one patient code.');
+        return;
+      }
+
+      resultEl.innerHTML = '<p class="loading">Generating AI handover brief...</p>';
+      resultEl.classList.remove('hidden');
+
+      try {
+        const res = await fetch(`${API}/api/ai/handover`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ patient_codes })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        resultEl.innerHTML = `
+          <div class="handover-brief">
+            <h3>🔄 Shift Handover Brief</h3>
+            <p class="brief-overview">${data.handover_brief || ''}</p>
+            ${(data.patients || []).map(p => `
+              <div class="handover-patient priority-${p.priority}">
+                <div class="handover-patient-header">
+                  <strong>${p.name}</strong>
+                  <span class="priority-badge ${p.priority}">${p.priority?.toUpperCase()} PRIORITY</span>
+                  <span>${p.patient_code}</span>
+                </div>
+                ${p.key_points && p.key_points.length > 0 ? `
+                  <div><strong>Key Points:</strong><ul>${p.key_points.map(k => `<li>${k}</li>`).join('')}</ul></div>
+                ` : ''}
+                ${p.pending_actions && p.pending_actions.length > 0 ? `
+                  <div><strong>Pending Actions:</strong><ul>${p.pending_actions.map(a => `<li>${a}</li>`).join('')}</ul></div>
+                ` : ''}
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } catch (err) {
+        resultEl.innerHTML = `<p class="error-msg">❌ ${err.message}</p>`;
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('patientModal').classList.add('hidden');
+    }
+
+    // Load recent patients on start
+    searchPatients();
+  </script>
+</body>
+</html>
