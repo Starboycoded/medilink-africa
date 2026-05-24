@@ -8,7 +8,7 @@ const express = require('express');
       const { full_name, email, password, role, hospital } = req.body;
       if (!full_name || !email || !password || !role)
         return res.status(400).json({ error: 'All fields are required.' });
-      const validRoles = ['patient', 'doctor', 'nurse', 'admin'];
+      const validRoles = ['doctor', 'nurse', 'admin'];
       if (!validRoles.includes(role))
         return res.status(400).json({ error: 'Invalid role.' });
       try {
